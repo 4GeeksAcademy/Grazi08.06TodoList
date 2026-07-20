@@ -1,7 +1,7 @@
-// Importamos useState desde React.
+// Importamos useState y useEffect desde React.
 // useState sirve para guardar información.
-// Cuando esa información cambia, React vuelve a dibujar la pantalla.
-import { useState } from "react";
+// useEffect sirve para ejecutar código automáticamente cuando la página carga.
+import { useState, useEffect } from "react";
 
 const Home = () => {
 
@@ -9,91 +9,107 @@ const Home = () => {
   // ESTADOS
   // =====================================
 
-  // Aquí guardamos TODAS las tareas.
-  // Empieza siendo un array vacío porque todavía no hay ninguna tarea.
+  // Aquí guardamos TODAS las tareas que vienen del servidor.
+  // Empieza siendo un array vacío porque todavía no hemos hecho el GET.
   const [listaDeTareas, setListaDeTareas] = useState([]);
 
-  // Aquí guardamos lo que el usuario está escribiendo en el input.
-  // Empieza siendo un texto vacío ("").
+  // Aquí guardamos lo que el usuario escribe en el input.
   const [tarea, setTarea] = useState("");
 
 
+  // =====================================
+  // CARGAR TAREAS AL INICIAR (GET)
+  // =====================================
+
+  // useEffect se ejecuta automáticamente cuando la página carga.
+  // Aquí llamamos a getTasks() para traer las tareas del servidor.
+  useEffect(() => {
+    getTasks();
+  }, []);
+
+  // Esta función hace un GET a la API para obtener todas las tareas del usuario.
+  // IMPORTANTE: esta es la ruta correcta de la API.
+  const getTasks = () => {
+    fetch("https://playground.4geeks.com/todo/users/graziele/todos")
+      .then(res => res.json())
+      .then(data => {
+        // data es un array con todas las tareas del servidor.
+        setListaDeTareas(data);
+      })
+      .catch(err => console.log("Error al cargar tareas:", err));
+  };
+
 
   // =====================================
-  // FUNCIÓN PARA AÑADIR UNA TAREA
+  // FUNCIÓN PARA AÑADIR UNA TAREA (POST)
   // =====================================
 
   const agregarTarea = () => {
 
-    // Si el usuario no ha escrito nada
-    // (o solo ha escrito espacios),
-    // no hacemos nada y salimos de la función.
+    // Si el usuario no ha escrito nada, no hacemos nada.
     if (tarea.trim() === "") return;
 
-    // Creamos un NUEVO array.
-    //
-    // Los tres puntos (...) copian todas las tareas
-    // que ya existen dentro del array.
-    //
-    // Después añadimos la nueva tarea al final.
-    //
-    // Ejemplo:
-    //
-    // listaDeTareas = ["Comprar pan", "Estudiar"]
-    //
-    // [...listaDeTareas, tarea]
-    //
-    // Resultado:
-    //
-    // ["Comprar pan", "Estudiar", "Ir al gimnasio"]
-    setListaDeTareas([
-      ...listaDeTareas,
-      tarea
-    ]);
+    // Creamos el objeto EXACTO que la API necesita.
+    const nuevaTarea = {
+      label: tarea,
+      is_done: false
+    };
 
-    // Ahora que la tarea ya está guardada,
-    // vaciamos el input para poder escribir otra.
+    // Hacemos un POST para añadir la tarea al servidor.
+    // IMPORTANTE: esta es la ruta correcta de la API.
+    fetch("https://playground.4geeks.com/todo/users/graziele/todos", {
+      method: "POST",
+      body: JSON.stringify(nuevaTarea),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    })
+      .then(() => {
+        // Después de añadir la tarea, volvemos a hacer GET para refrescar la lista.
+        getTasks();
+      })
+      .catch(err => console.log("Error al añadir tarea:", err));
+
+    // Limpiamos el input.
     setTarea("");
   };
 
 
-
   // =====================================
-  // FUNCIÓN PARA BORRAR UNA TAREA
+  // FUNCIÓN PARA BORRAR UNA TAREA (DELETE)
   // =====================================
 
-  const eliminarTarea = (indice) => {
+  const eliminarTarea = (id) => {
 
-    // filter() recorre TODO el array.
-    //
-    // Va mirando una tarea por una.
-    //
-    // Si devuelve TRUE -> la tarea se queda.
-    //
-    // Si devuelve FALSE -> la tarea desaparece.
-    //
-    // "_" significa:
-    // "Esta variable existe pero no la voy a utilizar".
-    //
-    // index es la posición de la tarea.
-    //
-    // index !== indice significa:
-    //
-    // "Quédate con todas las tareas
-    // menos con la que quiero borrar."
-
-    const nuevaLista = listaDeTareas.filter((_, index) => {
-
-      return index !== indice;
-
-    });
-
-    // Guardamos la nueva lista
-    // (que ya no tiene la tarea borrada).
-    setListaDeTareas(nuevaLista);
-
+    // DELETE necesita la URL con el ID de la tarea.
+    // IMPORTANTE: esta es la ruta correcta de la API.
+    fetch(`https://playground.4geeks.com/todo/users/graziele/todos/${id}`, {
+      method: "DELETE"
+    })
+      .then(() => {
+        // Después de borrar, refrescamos la lista con GET.
+        getTasks();
+      })
+      .catch(err => console.log("Error al borrar tarea:", err));
   };
 
+
+  // =====================================
+  // FUNCIÓN PARA BORRAR TODAS LAS TAREAS (DELETE ALL)
+  // =====================================
+
+  const eliminarTodas = () => {
+
+    // Esta ruta borra TODAS las tareas del usuario.
+    fetch("https://playground.4geeks.com/todo/users/graziele/todos", {
+      method: "DELETE"
+    })
+      .then(() => {
+        // Dejamos la lista vacía en el frontend.
+        setListaDeTareas([]);
+      })
+      .catch(err => console.log("Error al borrar todas las tareas:", err));
+  };
 
 
   // =====================================
@@ -107,122 +123,48 @@ const Home = () => {
       {/* Título */}
       <h1>Esta es mi lista de tareas</h1>
 
-
-
       {/* INPUT */}
-
       <input
-
-        // Tipo de input
         type="text"
-
-        // Texto gris que aparece cuando está vacío
         placeholder="Escribe aquí la tarea"
-
-        // Lo que aparece escrito dentro del input
-        // siempre será lo que haya en la variable "tarea".
         value={tarea}
-
-        // Cada vez que el usuario escribe una letra,
-        // guardamos ese nuevo texto.
-        //
-        // e significa "evento".
-        //
-        // e.target es el input.
-        //
-        // e.target.value es el texto que hay escrito.
-        onChange={(e) => {
-
-          setTarea(e.target.value);
-
-        }}
-
-        // Cuando el usuario pulsa una tecla,
-        // comprobamos cuál ha sido.
+        onChange={(e) => setTarea(e.target.value)}
         onKeyDown={(e) => {
-
-          // Si la tecla es Enter...
-          if (e.key === "Enter") {
-
-            // ...añadimos la tarea.
-            agregarTarea();
-
-          }
-
+          if (e.key === "Enter") agregarTarea();
         }}
-
       />
 
-
-
-      {/* BOTÓN */}
-
+      {/* BOTÓN PARA AÑADIR */}
       <button onClick={agregarTarea}>
-
         Añadir
-
       </button>
 
-
+      {/* BOTÓN PARA BORRAR TODAS */}
+      <button onClick={eliminarTodas} style={{ marginLeft: "10px", background: "red", color: "white" }}>
+        Borrar todas
+      </button>
 
       {/* LISTA DE TAREAS */}
-
       <ul>
-
         {
-
-          // map() recorre TODO el array.
-          //
-          // Va pasando por cada tarea una por una.
-          //
-          // Si el array tiene:
-          //
-          // ["Comprar pan", "Estudiar", "Dormir"]
-          //
-          // map hace esto:
-          //
-          // 1ª vuelta
-          // tarea = "Comprar pan"
-          //
-          // 2ª vuelta
-          // tarea = "Estudiar"
-          //
-          // 3ª vuelta
-          // tarea = "Dormir"
-          //
-          // En cada vuelta devuelve un <li>.
-
-          listaDeTareas.map((tarea, index) => (
-
-            <li key={index}>
+          listaDeTareas.map((item) => (
+            <li key={item.id}>
 
               {/* Mostramos el texto de la tarea */}
-              {tarea}
+              {item.label}
 
               {/* Botón para borrar la tarea */}
-              <button onClick={() => eliminarTarea(index)}>
-
-                ❌
-
+              <button onClick={() => eliminarTarea(item.id)}>
               </button>
 
             </li>
-
           ))
-
         }
-
       </ul>
 
-
-
       {/* MOSTRAR CUÁNTAS TAREAS HAY */}
-
       <p>
-
-        {/* length cuenta cuántos elementos tiene el array */}
         Tareas pendientes: {listaDeTareas.length}
-
       </p>
 
     </div>
@@ -231,6 +173,4 @@ const Home = () => {
 
 };
 
-// Exportamos el componente para poder utilizarlo
-// en otros archivos del proyecto.
 export default Home;
